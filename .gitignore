@@ -1,0 +1,8 @@
+# only the app and its Anki server go into the repository
+/*
+!/yadavar-app
+!/yadavar-server
+!/.github
+!/.gitignore
+!/README.md
+!/LICENSE

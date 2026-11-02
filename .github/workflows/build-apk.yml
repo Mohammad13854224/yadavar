@@ -1,0 +1,133 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+    tags: ['v*'] # a version tag also publishes the APK as a release
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  # Proves that the TypeScript engine (the one that runs inside the phone app) behaves like Anki's own backend:
+  # it is run against the official `anki` Python package, the same Rust code the phone library is built from.
+  engine-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: yadavar-app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: yadavar-app/package-lock.json
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install -r ../yadavar-server/requirements.txt
+      - run: npm ci
+      - run: npm run check
+      - name: Engine test
+        env:
+          YADAVAR_PY: python
+        run: |
+          set +e
+          npx tsx tools/engine-test.ts > /tmp/out.txt 2>&1
+          code=$?
+          cat /tmp/out.txt
+          if [ $code -ne 0 ]; then
+            msg=$(tail -n 60 /tmp/out.txt | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+            echo "::error title=engine-test log::$msg"
+          fi
+          exit $code
+
+  apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: yadavar-app
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: yadavar-app/package-lock.json
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      # the runner already has the Android SDK with accepted licences; only its location is needed
+      - name: Point to preinstalled Android SDK
+        run: |
+          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+
+      - run: npm ci
+
+      # build the web UI, then copy it and the Capacitor plugins into the Android project
+      - run: npm run build
+      - run: npx cap sync android
+
+      # the signing key lives only in the repository's secrets (Settings > Secrets > Actions: SIGNING_KEY = the key file
+      # in base64); a fork or a pull request has no access to it and gets the ordinary debug key
+      - name: Signing key
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        run: |
+          if [ -n "$SIGNING_KEY" ]; then
+            echo "$SIGNING_KEY" | base64 -d > android/app/yadavar-signing.p12
+            echo "SIGNED=1" >> $GITHUB_ENV
+          else
+            echo "::warning title=signing::no SIGNING_KEY secret: built with a throwaway debug key (it will not install over the official app)"
+          fi
+
+      - name: Build debug APK
+        working-directory: yadavar-app/android
+        run: |
+          chmod +x gradlew
+          set +e
+          ./gradlew assembleDebug --no-daemon --stacktrace > /tmp/gradle.txt 2>&1
+          code=$?
+          tail -n 80 /tmp/gradle.txt
+          if [ $code -ne 0 ]; then
+            msg=$( (grep -n -m1 -B2 -A25 'What went wrong' /tmp/gradle.txt; grep -n 'error:' /tmp/gradle.txt | head -20) | head -c 6000 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')
+            echo "::error title=gradle log::$msg"
+          fi
+          exit $code
+
+      # an update installs over the previous version only when both carry the same certificate: stop here if it changed
+      - name: Check the signing certificate
+        if: env.SIGNED == '1'
+        working-directory: yadavar-app/android
+        env:
+          YADAVAR_CERT_SHA256: 5d4ee85dc46a0d71f5c58cf819587fe389596422cee9c9a0a6ce3f2bb4becd8e
+        run: |
+          tools=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)
+          certs=$($tools/apksigner verify --print-certs app/build/outputs/apk/debug/app-debug.apk)
+          echo "$certs"
+          echo "$certs" | grep -qi "SHA-256 digest: $YADAVAR_CERT_SHA256" || { echo "::error title=signing::the APK is not signed with Yadavar's key: it would not install over the installed app"; exit 1; }
+
+      - name: Name the APK
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk yadavar.apk
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: yadavar-apk
+          path: yadavar-app/yadavar.apk
+          if-no-files-found: error
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v') && env.SIGNED == '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: yadavar-app/yadavar.apk
+          generate_release_notes: true

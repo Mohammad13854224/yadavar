@@ -1,0 +1,9 @@
+{
+  "appId": "app.ankio.review",
+  "appName": "یادآور",
+  "webDir": "dist",
+  "android": { "backgroundColor": "#0a0c14" },
+  "plugins": {
+    "SystemBars": { "insetsHandling": "native" }
+  }
+}

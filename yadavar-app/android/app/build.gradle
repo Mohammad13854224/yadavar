@@ -1,0 +1,84 @@
+apply plugin: 'com.android.application'
+
+// Every build on GitHub gets a higher version number (Android refuses an update numbered lower than what is installed)
+def ciRun = (System.getenv('GITHUB_RUN_NUMBER') ?: '0').toInteger()
+
+android {
+    namespace = "app.yadavar.review"
+    compileSdk = rootProject.ext.compileSdkVersion
+    defaultConfig {
+        // the id Android knows the installed app by (from its first name): changed, an update would not install over it
+        applicationId "app.ankio.review"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        // 1000 +: the repository moved (yadavar) and its run numbers started again from 1; the old one's builds were
+        // 100 + its runs, all below 1000, so every new build still installs over them
+        versionCode 1000 + ciRun
+        versionName "1.1." + ciRun
+        // the Anki backend ships native libraries (~20 MB each): keep the two ARM ones used by real phones
+        ndk {
+            abiFilters 'arm64-v8a', 'armeabi-v7a'
+        }
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    // One fixed key for every build. Android installs a new version over the old one only when both are signed with the
+    // same key; without this, each GitHub runner signs with its own new debug key and the update is refused
+    // ("App not installed"). The key is never in the repository: the workflow writes it from the SIGNING_KEY secret
+    // and checks the APK's certificate against YADAVAR_CERT_SHA256 after each build. Without it (a fork, a local build)
+    // the usual debug key signs.
+    def key = file('yadavar-signing.p12')
+    signingConfigs {
+        fixed {
+            storeFile key
+            storeType 'pkcs12'
+            storePassword System.getenv('SIGNING_PASSWORD') ?: 'android'
+            keyAlias 'ankio'
+            keyPassword System.getenv('SIGNING_PASSWORD') ?: 'android'
+        }
+    }
+    buildTypes {
+        debug {
+            if (key.exists()) signingConfig signingConfigs.fixed
+        }
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    // Anki's Rust backend for Android (what AnkiDroid uses); the version suffix is the Anki release it was built from
+    implementation 'io.github.david-allison:anki-android-backend:0.1.71-anki26.09.3'
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.build.gradle'
+
+try {
+    def servicesJSON = file('google-services.json')
+    if (servicesJSON.text) {
+        apply plugin: 'com.google.gms.google-services'
+    }
+} catch(Exception e) {
+    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+}
