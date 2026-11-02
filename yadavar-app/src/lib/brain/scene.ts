@@ -25,6 +25,8 @@ export interface SceneEvents {
 const DETAIL_FULL = 6.5
 const DETAIL_FAR = 10
 const DETAIL_MAX = 28
+/** the point the camera turns around stays at least this far ahead of it (zooming in then flies on forward) */
+const THROUGH = 1.8
 
 const NEURON_VS = /* glsl */ `
 attribute vec4 aInfo;   // health, strength, kind, seed
@@ -500,6 +502,7 @@ export class BrainScene {
     this.controls.screenSpacePanning = true
     this.controls.rotateSpeed = 0.7
     this.controls.minDistance = 0.25
+    this.controls.zoomSpeed = 1.3
     this.controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }
     this.controls.addEventListener('start', () => {
       this.fly = null
@@ -1200,6 +1203,22 @@ export class BrainScene {
     this.lastDetailCheck.set(1e9, 0, 0)
   }
 
+  /**
+   * Orbit controls zoom towards a fixed point and slow to a halt as they reach it: the camera could never go on past
+   * the neurons. Here the point turned around is carried ahead of the camera instead, never nearer than THROUGH: zooming
+   * in keeps flying forward (through the cells, as far as wanted), and turning always turns around a point just ahead.
+   */
+  private flyThrough() {
+    if (this.fly) return
+    const t = this.controls.target
+    const cam = this.camera.position
+    const d = cam.distanceTo(t)
+    if (d >= THROUGH) return
+    this.v.subVectors(t, cam)
+    if (this.v.lengthSq() < 1e-10) this.camera.getWorldDirection(this.v)
+    t.addScaledVector(this.v.normalize(), THROUGH - d)
+  }
+
   // ---------- the loop ----------
 
   private wake = () => {
@@ -1240,6 +1259,7 @@ export class BrainScene {
       if (k >= 1) this.fly = null
     }
     this.controls.update(dt)
+    this.flyThrough()
     u.uFocus.value = this.camera.position.distanceTo(this.controls.target)
     if (this.model) {
       // how much of the screen the glows of the cells in view cover, roughly

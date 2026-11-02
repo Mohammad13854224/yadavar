@@ -5,12 +5,15 @@ export type RGB = [number, number, number]
 const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
 const hex = (h: number): RGB => [((h >> 16) & 255) / 255, ((h >> 8) & 255) / 255, (h & 255) / 255]
 
-// a recalled memory glows cool cyan; as it fades it warms through amber and orange to a dim red ember
+// at the user's goal a memory glows cool cyan; the moment it drops under the goal it turns amber (fading), then orange
+// (being forgotten), then a dim red ember (forgotten) — health is measured from the goal (model.ts: FORGET_SPAN)
 const STOPS: [number, RGB][] = [
   [0, hex(0xe0344f)],
+  [1 / 3, hex(0xf0473f)],
   [0.4, hex(0xff7a3d)],
-  [0.7, hex(0xffc94d)],
-  [0.88, hex(0x8ff0c8)],
+  [2 / 3, hex(0xff9a3d)],
+  [0.72, hex(0xffc94d)],
+  [0.995, hex(0xffd75e)],
   [1, hex(0x3fdcf2)],
 ]
 const NEW = hex(0x8c93c9) // immature, silent: a pale lilac

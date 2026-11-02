@@ -292,14 +292,21 @@ export interface BrainInput {
   now?: number
 }
 
+/** how far under the goal (in recall) a memory counts as forgotten: health 0 */
+export const FORGET_SPAN = 0.3
+/** health bands: under the goal by up to a third of the span "fading", up to two thirds "being forgotten", then "forgotten" */
+export const FADING = 2 / 3
+export const FORGETTING = 1 / 3
+
 /** how the card's memory stands: health, strength, kind, recall */
 export function neuronState(c: Card, retention: number): [number, number, number, number] {
   if (c.parked) return [0.35, 0.2, KIND_PARKED, c.recall ?? -1]
   if (c.state === 'new') return [0, 0, KIND_NEW, -1]
-  const goal = c.fsrs ? retention : 0.9
+  // measured against the user's own goal (the retention set in the settings): at the goal or above it is healthy; below
+  // it, it fades with the distance from the goal, and FORGET_SPAN under it the memory counts as forgotten
+  const goal = retention
   const recall = c.recall ?? (c.ready ? goal : Math.min(0.99, goal + 0.05))
-  // at the goal or above: healthy; it fades towards nothing at 35 % (most would be forgotten)
-  const health = Math.max(0, Math.min(1, (recall - 0.35) / (goal - 0.35)))
+  const health = recall >= goal ? 1 : Math.max(0, 1 - (goal - recall) / FORGET_SPAN)
   if (c.state === 'learning') return [health, 0.04, KIND_LEARNING, recall]
   const strength = 1 - Math.exp(-Math.max(0, c.interval) / 30) // 1 day ≈ 0.03, 3 weeks ≈ 0.5, 3 months ≈ 0.95
   return [health, strength, KIND_REVIEW, recall]
