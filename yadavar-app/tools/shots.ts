@@ -72,7 +72,7 @@ async function seed() {
 
 async function shot(page: Page, name: string) {
   await sleep(600)
-  await page.screenshot({ path: join(OUT, name + '.png') })
+  await page.screenshot({ path: join(OUT, name + '.jpg'), type: 'jpeg', quality: 84, scale: 'css' }) // light for the repository's front page
   console.log('saved', name)
 }
 

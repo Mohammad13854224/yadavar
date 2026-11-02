@@ -1,5 +1,7 @@
 <div align="center" dir="rtl">
 
+<img src=".github/assets/logo.png" width="110" alt="لوگوی یادآور">
+
 # یادآور
 
 **مرور فاصله‌دار به فارسی، ساده و زیبا، روی گوشی**
