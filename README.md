@@ -6,8 +6,8 @@
 
 با موتور متن‌باز انکی کار می‌کند و حافظه‌ات را به شکل یک مغز سه‌بعدی نشان می‌دهد
 
-[![دانلود برای اندروید](https://img.shields.io/badge/دانلود-اندروید-3ddc84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Mohammad13854224/yadavar/releases/latest)
-[![AGPL-3.0](https://img.shields.io/badge/مجوز-AGPL--3.0-7c6cf0?style=for-the-badge)](LICENSE)
+[![Download for Android](https://img.shields.io/badge/Download-Android-3ddc84?style=for-the-badge&logo=android&logoColor=white)](https://github.com/Mohammad13854224/yadavar/releases/latest)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-7c6cf0?style=for-the-badge)](LICENSE)
 
 <br>
 
