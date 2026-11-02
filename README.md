@@ -11,10 +11,10 @@
 
 <br>
 
-<img src=".github/assets/reviews.png" width="200" alt="مرورهای امروز و نوار خطر فراموشی">&nbsp;
-<img src=".github/assets/review.png" width="200" alt="مرور یک کارت">&nbsp;
-<img src=".github/assets/brain.png" width="200" alt="نقشه‌ی سه‌بعدی مغز">&nbsp;
-<img src=".github/assets/neuron.png" width="200" alt="یک نرون از نزدیک">
+<img src=".github/assets/reviews.jpg" width="200" alt="مرورهای امروز و نوار خطر فراموشی">&nbsp;
+<img src=".github/assets/review.jpg" width="200" alt="مرور یک کارت">&nbsp;
+<img src=".github/assets/brain.jpg" width="200" alt="نقشه‌ی سه‌بعدی مغز">&nbsp;
+<img src=".github/assets/neuron.jpg" width="200" alt="یک نرون از نزدیک">
 
 </div>
 
